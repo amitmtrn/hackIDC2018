@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<!-- #include <opencv2/imgproc/imgproc.hpp> -->
+<head>
+  <meta charset="utf-8">
+  <title>Hello OpenCV.js</title>
+</head>
+
+  <video id="hiddenScreen"></video>
+  <canvas id="hiddenCanvasScreen"></canvas>
+  <canvas id="viewScreen"></canvas>
+<body>
+
+  <script src="./js-handtracking/src/cv.js" type="text/javascript">
+  </script>
+  <script src="./js-handtracking/src/handtracking.js" type="text/javascript">
+  </script>
+  <script src="opencv.js" type="text/javascript"></script>
+  <script type="text/javascript">
+
+  // const skinColorUpper = hue =>{return 10;}
+  // const skinColorLower = hue =>{return 10;}
+  // const skinColorUpper = hue => new cv.IntVector(hue, Math.floor(0.8 * 255), Math.floor(0.6 * 255));
+  // const skinColorLower = hue => new cv.IntVector(hue, Math.floor(0.1 * 255), Math.floor(0.05 * 255));
+  const radius = 30;
+
+    (async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({video: true, audio: false});
+      const context = hiddenCanvasScreen.getContext('2d');
+      const cw = hiddenCanvasScreen.width;
+      const ch = hiddenCanvasScreen.height;
+
+      hiddenScreen.srcObject = stream;
+      hiddenScreen.play();
+
+    hiddenScreen.addEventListener('play', function(){
+          draw(this,context,cw,ch);
+    },false);
+
+    function draw(v,c,w,h) {
+        if(v.paused || v.ended) return false;
+        c.drawImage(v,0,0,w,h);
+        setTimeout(draw,20,v,c,w,h);
+
+    }
+    const makeHandMask = (img) => {
+// filter by skin color
+    const imgHLS = new cv.Mat();
+    cv.cvtColor(img, imgHLS, cv.COLOR_BGR2HLS);
+    const rangeMask = imgHLS.rowRange(skinColorLower(0), skinColorUpper(15));
+
+    // remove noise
+    const blurred = rangeMask.blur(new cv.Size(10, 10));
+    const thresholded = blurred.threshold(
+      200,
+      255,
+      cv.THRESH_BINARY
+    );
+  }
+      const identifyThumbInTheMiddle = (candidate)=>{
+        if (candidate === undefined ) return false;
+        // console.log(candidate);
+        candidate.hull.forEach((hull)=>{
+            let distanceFromCenter = Math.abs(hull.x - cw/2) + Math.abs(hull.y - ch/2);
+
+              if(distanceFromCenter < radius){
+                console.log("shoot!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                return true;
+              }
+        })
+
+          // console.log(candidate);
+      }
+      function frame() {
+        // console.log(cw, ch);
+        var tracker = new HT.Tracker();
+        const imageData = context.getImageData(0, 0, cw,ch);
+        const candidate = tracker.detect(imageData);
+        // console.log(candidate);
+        identifyThumbInTheMiddle(candidate);
+        skinner = new HT.Skinner();
+        imageDst = skinner.mask(imageData, new ImageData(cw, ch));
+
+        context.putImageData(imageDst, 0, 0);
+
+        // console.log(imageDst);
+
+
+        // console.log(candidate);
+        requestAnimationFrame(frame);
+      }
+      const getHandContour = (handMask) => {
+          const contours = handMask.findContours(
+          cv.RETR_EXTERNAL,
+          cv.CHAIN_APPROX_SIMPLE
+      );
+  // largest contour
+  return contours.sort((c0, c1) => c1.area - c0.area)[0];
+};
+
+      frame();
+    })()
+
+  </script>
+</body>
+
+</html>
